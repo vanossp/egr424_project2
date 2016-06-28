@@ -1,0 +1,11 @@
+project 2 report
+
+cover page
+external circuit if applicable
+custom functions
+	- prototype
+	- description (4-5 lines max)
+extra credit
+demo
+
+5-6 pages total, nothing too bad
