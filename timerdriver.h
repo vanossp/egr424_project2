@@ -25,7 +25,7 @@ extern "C"
 // Defines for proper operation
 //
 //*****************************************************************************
-#define TWO_HUNDRED_MS		1000
+#define TWO_HUNDRED_MS		1000 // right now idk the correct value
 
 
 //*****************************************************************************

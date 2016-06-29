@@ -27,7 +27,12 @@ volatile unsigned uAdcFlag;
 volatile unsigned uTimerFlag;
 
 unsigned long ulAdcVal;
-unsigned uTimerCount;
+unsigned uTimerCount = 0;
+unsigned long ulBuffer1[10], ulBuffer2[10];
+unsigned uIndexCounter = 0;
+unsigned uBufferSelect;
+double dAvgADCVal = 0;
+char cAdcADCVal;
 
 
 void ADC_IsrHandler()
@@ -70,40 +75,70 @@ int main(void)
 		// If timer interrupt was triggered count up
 		if(uTimerFlag == 1)
 		{
-			uTimerCount++;
-
-			if(uTimerCount == TWO_HUNDRED_MS)
-			{
-				// average a buffer
-
-				// display a buffer
-
-				// clear a buffer
-
-				// switch buffers
-			}
-
 			uTimerFlag = 0;
 
-			ADC_StartSample();
+			uTimerCount++;
 
-			RIT128x96x4Clear();
+			if(uTimerCount == 100)
+			{
+				uTimerCount = 0;
+				dAvgADCVal = 0; // reset average
+
+				if(uBufferSelect == 1)
+				{
+					//RIT128x96x4Clear();
+					RIT128x96x4StringDraw("Hello", 36,  0, 15);
+					// switch buffers early so the adc doesnt overwrite anything or mess up
+					uBufferSelect = 0;
+
+					// average second buffer
+					for(uIndexCounter=0; uIndexCounter<uTimerCount; uIndexCounter++)
+					{
+						dAvgADCVal += ulBuffer2[uIndexCounter]; // grab index and roll into average
+						ulBuffer1[uIndexCounter] = 0; // reset array index
+					}
+				}
+				else
+				{
+					//RIT128x96x4Clear();
+					RIT128x96x4StringDraw("Bye", 36,  16, 15);
+					// switch buffers
+					uBufferSelect = 1;
+
+					// average first buffer
+					for(uIndexCounter=0; uIndexCounter<uTimerCount; uIndexCounter++)
+					{
+						dAvgADCVal += ulBuffer1[uIndexCounter]; // grab index and roll into average
+						ulBuffer1[uIndexCounter] = 0; // reset array index
+					}
+				}
+				// average and display
+				dAvgADCVal /= 10;
+				cAdcADCVal = (char)dAvgADCVal;
+				//RIT128x96x4StringDraw(&cAdcADCVal, 2, 2, 15);
+				//RIT128x96x4StringDraw("Hello", 36,  0, 15);
+			}
+
+			//RIT128x96x4StringDraw("UART Echo", 36,  0, 15);
+
+			ADC_StartSample();
 		}
 
 		if(uAdcFlag == 1)
 		{
 			uAdcFlag = 0;
 
-			ADC_GetSample(&ulAdcVal);
+			//RIT128x96x4Clear();
 
 			//fill buffer here
-
-			//ADC_StartSample();
-			
-
-			//RIT128x96x4StringDraw("Hello World!", 30, 24, 15);
+			if(uBufferSelect == 1)
+			{
+				ADC_GetSample(&ulBuffer1[uTimerCount-1]);
+			}
+			else
+			{
+				ADC_GetSample(&ulBuffer2[uTimerCount-1]);
+			}
 		}
-
-
 	}
 }
