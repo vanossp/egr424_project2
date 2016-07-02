@@ -2,8 +2,8 @@
 //
 // adcdriver.h
 //
-// Author: Phillip VanOss
-//		   Nick Shrock
+// Authors: Phillip VanOss
+//		    Nick Schrock
 //
 // Purpose: This file serves to initialize and provide the functionality 
 // 			required for a single ended interrupt driven adc input on a

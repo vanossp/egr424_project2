@@ -2,8 +2,8 @@
 //
 // timerdriver.h
 //
-// Author: Phillip VanOss
-//		   Nick Shrock
+// Authors: Phillip VanOss
+//		    Nick Schrock
 //
 // Purpose: This file serves to initialize and provide the functionality 
 // 			required for a single timer on the ek-lm3s6965 TI board. This
@@ -19,14 +19,6 @@
 extern "C"
 {
 #endif
-
-//*****************************************************************************
-//
-// Defines for proper operation
-//
-//*****************************************************************************
-#define TWO_HUNDRED_MS		1000 // right now idk the correct value
-
 
 //*****************************************************************************
 //

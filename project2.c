@@ -3,7 +3,7 @@
 // project2.c
 //
 // Authors: Phillip VanOss
-//			Nick Shrock
+//			Nick Schrock
 //
 // Purpose: This file serves as the main file for the audio visualizer for 
 //  		EGR 424.
@@ -13,26 +13,22 @@
 #include "inc/hw_ints.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_types.h"
-#include "driverlib/debug.h"
-#include "driverlib/gpio.h"
 #include "driverlib/interrupt.h"
-#include "driverlib/sysctl.h"
-#include "driverlib/uart.h"
 #include "drivers/rit128x96x4.h"
 
 #include "adcdriver.h"
 #include "timerdriver.h"
 
+// Define the number of timer counts to reach two hundred ms, use for array sizes too
+#define TWO_HUNDRED_MS 3200
+
+// Declare interrupt variables
 volatile unsigned uAdcFlag;
 volatile unsigned uTimerFlag;
 
-unsigned long ulAdcVal;
-unsigned uTimerCount = 0;
-unsigned long ulBuffer1[100], ulBuffer2[100];
-unsigned uIndexCounter = 0;
+// Declare buffer variables
+unsigned long ulBuffer1[TWO_HUNDRED_MS], ulBuffer2[TWO_HUNDRED_MS];
 unsigned uBufferSelect;
-double dAvgADCVal = 0;
-char cAdcADCVal, cTimerCount, cBufferSelect, cVal, str[100], test[100];
 
 
 //*****************************************************************************
@@ -47,7 +43,6 @@ void ADC_IsrHandler()
 {
 	ADC_IntClear(); // clear interrupt
 	uAdcFlag = 1; // raise flag
-
 }
 
 
@@ -66,74 +61,6 @@ void Timer_IsrHandler()
 	uTimerFlag = 1; // raise flag
 }
 
-/*
-void swap(char first, char second)
-{
-	char temporary;
-
-	temporary = first;
-	first = second;
-	second = first;
-}
-
-
-// reverses a string
-void reverse(char str[], int length)
-{
-    int start = 0;
-    int end = length -1;
-    while (start < end)
-    {
-        swap(*(str+start), *(str+end));
-        start++;
-        end--;
-    }
-}
- 
-// Implementation of itoa()
-char* itoa(int num, char* str, int base)
-{
-    int i = 0;
-    //bool isNegative = false;
-    int isNegative = 0;
- 
-    // Handle 0 explicitely, otherwise empty string is printed for 0
-    if (num == 0)
-    {
-        str[i++] = '0';
-        str[i] = '\0';
-        return str;
-    }
- 
-    // In standard itoa(), negative numbers are handled only with 
-    // base 10. Otherwise numbers are considered unsigned.
-    if (num < 0 && base == 10)
-    {
-        //isNegative = true;
-        isNegative = 1;
-        num = -num;
-    }
- 
-    // Process individual digits
-    while (num != 0)
-    {
-        int rem = num % base;
-        str[i++] = (rem > 9)? (rem-10) + 'a' : rem + '0';
-        num = num/base;
-    }
- 
-    // If number is negative, append '-'
-    if (isNegative)
-        str[i++] = '-';
- 
-    str[i] = '\0'; // Append string terminator
- 
-    // Reverse the string
-    reverse(str, i);
- 
-    return str;
-}*/
-
 
 //*****************************************************************************
 //
@@ -145,7 +72,7 @@ char* itoa(int num, char* str, int base)
 double Average_Buffer(unsigned long* buffer)
 {
 	double average = 0;
-	double length = 100.0; // length of the buffer to be averaged
+	double length = TWO_HUNDRED_MS; // length of the buffer to be averaged
 
 	// sum the buffer into one variable 
 	for(int i=0;i<length;i++)
@@ -170,35 +97,31 @@ double Average_Buffer(unsigned long* buffer)
 //*****************************************************************************
 void OLED_DisplayPowerLvl(double power)
 {
-	unsigned height, intensity, index;
 	double amplification = 20; // software amplifier
-	unsigned char array[500]; // array containing power bar information
-	unsigned Y_LIM = 40; // max height of the bar
+
+	unsigned intensity, index;
+
+	unsigned Y_LIM = 96; // max height of the bar
 	unsigned X_LIM = 10; // width of the bar
 
-	//IntMasterDisable();
+	unsigned char array[Y_LIM*X_LIM]; // array containing power bar information
 
-	height = (int)(((power*amplification)/1023.0)*X_LIM);
+	// Determine the intensity of the pixels in the power bar
+	intensity = (int)(((power*amplification)/1023.0)*X_LIM);
+	intensity = (int)(intensity*0.1579);
 
-	intensity = (int)(height*0.1579);
-
+	// Shift over the intensity and or it back in to make full byte
 	intensity = ((intensity << 4) | intensity);
 
+	// Determine pixel specific information
 	for(index=0;index < (X_LIM*Y_LIM/2);index++)
 	{
-		if(index < ((Y_LIM - height) * (X_LIM / 2.0) - 1))
-		{
-			array[index] = intensity;
-		}
-		else
-		{
-			array[index] = 0;
-		}
+		// Turn the power bar pixels to the correct intensity
+		array[index] = intensity;		
 	}
 
+	// Draw the image stored in array
 	RIT128x96x4ImageDraw(array, 0, 0, X_LIM, Y_LIM);
-
-	//IntMasterEnable();
 }
 
 
@@ -211,6 +134,11 @@ void OLED_DisplayPowerLvl(double power)
 //*****************************************************************************
 int main(void)
 {
+	// Declare variables used in main
+	unsigned uTimerCount = 0;
+	unsigned long ulAdcVal;
+	double dAvgAdcVal = 0;
+
 	// Initialize ADC
 	ADC_Init();
 	ADC_IntRegister(ADC_IsrHandler);
@@ -241,21 +169,19 @@ int main(void)
 			uTimerCount++; 
 
 			// check if 200 ms have passed
-			if(uTimerCount == 99)
+			if(uTimerCount == TWO_HUNDRED_MS - 1)
 			{
 				// reset counter
 				uTimerCount = 0; 
 
 				// determine the average voltage level from the correct buffer
-				dAvgADCVal = (uBufferSelect == 1) ? Average_Buffer(ulBuffer1) : Average_Buffer(ulBuffer2);
+				dAvgAdcVal = (uBufferSelect == 1) ? Average_Buffer(ulBuffer1) : Average_Buffer(ulBuffer2);
 				
 				// switch buffers
 				uBufferSelect ^= 1; 
-				
-				//itoa(dAvgADCVal*20.0, test, 10);
 
 				// Display the power level by adjusting a bar
-				OLED_DisplayPowerLvl(dAvgADCVal); 
+				OLED_DisplayPowerLvl(dAvgAdcVal); 
 			}
 		}
 
@@ -267,8 +193,6 @@ int main(void)
 
 			// get an adc read
 			ADC_GetSample(&ulAdcVal); 
-
-			//itoa(ulAdcVal, str, 10);
 
 			//check which buffer is active and fill the appropriate one
 			if(uBufferSelect == 1)
